@@ -14,14 +14,27 @@ import userRoutes from './routes/users.routes.js';
 
 const app = express();
 
-app.use(cors({
-  origin: (origin, cb) => {
-    // Permite herramientas sin origin (curl/postman) y los orígenes whitelisteados.
-    if (!origin || env.corsOrigins.includes(origin)) return cb(null, true);
-    return cb(new Error(`Origen no permitido por CORS: ${origin}`));
-  },
+// CORS robusto: acepta requests sin origin (curl/postman), cualquier subdominio
+// *.vercel.app (previews y producción) y los orígenes configurados en CORS_ORIGINS.
+// Nunca lanza error (no rompe el preflight); si no está permitido, simplemente no
+// habilita el header y el navegador lo bloquea.
+const isAllowedOrigin = (origin) => {
+  if (!origin) return true;
+  if (env.corsOrigins.includes('*') || env.corsOrigins.includes(origin)) return true;
+  try {
+    const host = new URL(origin).hostname;
+    if (host === 'localhost' || host === '127.0.0.1') return true;
+    if (host.endsWith('.vercel.app')) return true;
+  } catch (_) { /* origin inválido */ }
+  return false;
+};
+
+const corsOptions = {
+  origin: (origin, cb) => cb(null, isAllowedOrigin(origin)),
   credentials: true,
-}));
+};
+app.use(cors(corsOptions));
+app.options('*', cors(corsOptions)); // responde el preflight explícitamente
 app.use(express.json());
 
 // Healthcheck
