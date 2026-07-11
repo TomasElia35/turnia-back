@@ -9,6 +9,7 @@ create extension if not exists "pgcrypto";
 
 -- ── Limpieza (orden inverso por dependencias) ───────────────────────────────
 drop table if exists password_reset_tokens cascade;
+drop table if exists commission_payouts    cascade;
 drop table if exists product_sales         cascade;
 drop table if exists cancellation_requests cascade;
 drop table if exists payments              cascade;
@@ -66,6 +67,11 @@ create table businesses (
   open_hours        text,
   theme_color       text,
   is_active         boolean not null default true,
+  -- Comisiones
+  commission_on_products boolean not null default false,  -- si las ventas de productos generan comisión
+  -- Destacados (marketplace) — flag manual del superadmin
+  featured          boolean not null default false,
+  featured_rank     integer default 0,                    -- orden entre destacados (mayor = primero)
   -- Configuración de seña
   deposit_required             boolean default false,
   deposit_amount               integer default 0,
@@ -171,13 +177,17 @@ create table deposits (
 
 -- ── PAYMENTS (cobro del turno) ───────────────────────────────────────────────
 create table payments (
-  id          uuid primary key default gen_random_uuid(),
-  booking_id  uuid not null references bookings(id) on delete cascade,
-  amount      integer not null,
-  method      text,             -- efectivo | transferencia | tarjeta | mercadopago
-  paid_at     timestamptz not null default now()
+  id                 uuid primary key default gen_random_uuid(),
+  booking_id         uuid not null references bookings(id) on delete cascade,
+  amount             integer not null,        -- monto final cobrado (con descuento aplicado)
+  method             text,                    -- efectivo | transferencia | tarjeta | mercadopago
+  professional_id    uuid references professionals(id) on delete set null,  -- a quién le corresponde la comisión
+  commission_percent integer,                 -- % congelado al momento del cobro
+  commission_amount  integer,                 -- monto de comisión congelado
+  paid_at            timestamptz not null default now()
 );
 create index idx_payments_booking on payments (booking_id);
+create index idx_payments_professional on payments (professional_id);
 
 -- ── CANCELLATION REQUESTS ─────────────────────────────────────────────────────
 create table cancellation_requests (
@@ -231,6 +241,20 @@ create table subscriptions (
   created_at        timestamptz not null default now()
 );
 create index idx_subscriptions_business on subscriptions (business_id);
+
+-- ── COMMISSION PAYOUTS (liquidaciones — "marcar como rendido") ────────────────
+create table commission_payouts (
+  id              uuid primary key default gen_random_uuid(),
+  business_id     uuid not null references businesses(id) on delete cascade,
+  professional_id uuid not null references professionals(id) on delete cascade,
+  amount          integer not null,          -- monto rendido/pagado al empleado
+  note            text,
+  period_from     date,
+  period_to       date,
+  created_by      uuid references users(id) on delete set null,
+  paid_at         timestamptz not null default now()
+);
+create index idx_payouts_business on commission_payouts (business_id, professional_id);
 
 -- ── PASSWORD RESET TOKENS ────────────────────────────────────────────────────
 create table password_reset_tokens (

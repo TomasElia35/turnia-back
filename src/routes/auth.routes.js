@@ -24,6 +24,14 @@ async function resolveBusinessId(user) {
       await one('update users set business_id = $1 where id = $2 returning id', [biz.id, user.id]);
     }
   }
+  // Empleado: resolver a qué profesional está vinculado (para acotar su vista a lo suyo).
+  if (user.role === 'employee') {
+    const prof = await one('select id, business_id from professionals where user_id = $1 limit 1', [user.id]);
+    if (prof) {
+      user.professional_id = prof.id;
+      if (!user.business_id) user.business_id = prof.business_id;
+    }
+  }
   // Adjuntar el nombre del negocio (para el sidebar, etc.)
   if (user.business_id) {
     const biz = await one('select name from businesses where id = $1', [user.business_id]);

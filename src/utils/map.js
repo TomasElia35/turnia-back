@@ -39,6 +39,8 @@ export const mapProfessional = (p, assignments = []) => {
     schedule: p.schedule || {},
     serviceCommissions,
     assignedServices,
+    userId: p.user_id || null,
+    accessEmail: p.access_email || null,   // email de la cuenta de acceso (si tiene)
   };
 };
 
@@ -61,6 +63,9 @@ export const mapBusiness = (b, { services = [], professionals = [], products = [
   openDays: b.open_days || [],
   openHours: b.open_hours,
   themeColor: b.theme_color,
+  commissionOnProducts: b.commission_on_products || false,
+  featured: b.featured || false,
+  featuredRank: b.featured_rank || 0,
   monthlyStats: monthlyStats || { bookings: 0, revenue: 0, newClients: 0 },
   depositConfig: {
     required: b.deposit_required,
@@ -153,6 +158,7 @@ export const mapUser = (u) => {
     avatar: rest.avatar_url,
     businessId: rest.business_id,
     businessName: rest.business_name || null,
+    professionalId: rest.professional_id || null,   // si es empleado vinculado a un profesional
     favoriteBusinessId: rest.favorite_business_id,
     favoriteProfessionalId: rest.favorite_professional_id,
   };

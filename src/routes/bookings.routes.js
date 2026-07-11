@@ -32,6 +32,14 @@ router.get('/', requireAuth, asyncHandler(async (req, res) => {
   if (from) add('b.booking_date >= ?', from);
   if (to) add('b.booking_date <= ?', to);
   if (professionalId) add('b.professional_id = ?', professionalId);
+
+  // El empleado solo puede ver SUS turnos (los de su profesional). Se fuerza en el backend.
+  if (req.user.role === 'employee') {
+    const prof = await one('select id from professionals where user_id = $1', [req.user.id]);
+    if (!prof) return res.json([]);
+    add('b.professional_id = ?', prof.id);
+  }
+
   const where = conds.length ? `where ${conds.join(' and ')}` : '';
   const rows = await many(`${BOOKING_SELECT} ${where} order by b.booking_date, b.booking_time`, params);
   res.json(rows.map(mapBooking));
@@ -154,10 +162,36 @@ router.patch('/:id', requireAuth, requireRole('admin', 'employee', 'superadmin')
   res.json(mapBooking(full));
 }));
 
-// POST /api/bookings/:id/payment — registrar cobro y completar
+// POST /api/bookings/:id/payment — registrar cobro y completar.
+// La comisión se CONGELA acá: % (override por servicio o base del profesional) y monto,
+// calculados sobre el importe final cobrado (ya con descuento aplicado).
 router.post('/:id/payment', requireAuth, requireRole('admin', 'employee', 'superadmin'), asyncHandler(async (req, res) => {
   const { amount, method } = req.body;
-  await query('insert into payments (booking_id, amount, method) values ($1,$2,$3)', [req.params.id, amount, method]);
+
+  const bk = await one('select professional_id, service_id from bookings where id = $1', [req.params.id]);
+  if (!bk) return res.status(404).json({ error: 'Turno no encontrado.' });
+
+  let commissionPercent = null;
+  let commissionAmount = null;
+  const profId = bk.professional_id || null;
+  if (profId) {
+    const prof = await one('select commission from professionals where id = $1', [profId]);
+    let percent = prof?.commission ?? 0;
+    if (bk.service_id) {
+      const ov = await one(
+        'select commission_override from professional_services where professional_id = $1 and service_id = $2',
+        [profId, bk.service_id]
+      );
+      if (ov && ov.commission_override != null) percent = ov.commission_override;
+    }
+    commissionPercent = percent;
+    commissionAmount = Math.round((Number(amount) || 0) * percent / 100);
+  }
+
+  await query(
+    'insert into payments (booking_id, amount, method, professional_id, commission_percent, commission_amount) values ($1,$2,$3,$4,$5,$6)',
+    [req.params.id, amount, method, profId, commissionPercent, commissionAmount]
+  );
   await query("update bookings set status = 'completed' where id = $1", [req.params.id]);
   const full = await one(`${BOOKING_SELECT} where b.id = $1`, [req.params.id]);
   res.status(201).json(mapBooking(full));

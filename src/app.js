@@ -11,6 +11,7 @@ import productRoutes from './routes/products.routes.js';
 import bookingRoutes from './routes/bookings.routes.js';
 import subscriptionRoutes from './routes/subscriptions.routes.js';
 import userRoutes from './routes/users.routes.js';
+import reportRoutes from './routes/reports.routes.js';
 
 const app = express();
 
@@ -50,6 +51,7 @@ app.use('/api/products', productRoutes);
 app.use('/api/bookings', bookingRoutes);
 app.use('/api/subscriptions', subscriptionRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/reports', reportRoutes);
 
 app.use(notFound);
 app.use(errorHandler);

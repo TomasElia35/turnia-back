@@ -3,15 +3,16 @@ import { one, many, query } from '../config/db.js';
 import { requireAuth, requireRole } from '../middleware/auth.js';
 import { asyncHandler } from '../middleware/errorHandler.js';
 import { mapProfessional } from '../utils/map.js';
+import { hashPassword } from '../utils/password.js';
 
 const router = Router();
 
-// GET /api/professionals?businessId=... (incluye servicios asignados)
+// GET /api/professionals?businessId=... (incluye servicios asignados + cuenta de acceso)
 router.get('/', asyncHandler(async (req, res) => {
   const { businessId } = req.query;
   const profs = businessId
-    ? await many('select * from professionals where business_id = $1 order by name', [businessId])
-    : await many('select * from professionals order by name', []);
+    ? await many('select p.*, u.email as access_email from professionals p left join users u on u.id = p.user_id where p.business_id = $1 order by p.name', [businessId])
+    : await many('select p.*, u.email as access_email from professionals p left join users u on u.id = p.user_id order by p.name', []);
   const ids = profs.map((p) => p.id);
   const assignments = ids.length
     ? await many('select * from professional_services where professional_id = any($1)', [ids])
@@ -30,18 +31,47 @@ async function setAssignments(professionalId, assignedServices) {
   }
 }
 
+// Crea o vincula una cuenta de acceso (empleado) para el profesional.
+// Si el email ya existe, lo vincula (y actualiza la contraseña si viene).
+async function linkEmployeeUser(prof, businessId, email, password) {
+  if (!email) return;
+  const existing = await one('select id from users where lower(email) = lower($1)', [email]);
+  let userId;
+  if (existing) {
+    userId = existing.id;
+    if (password) {
+      await query('update users set password_hash = $1, business_id = $2 where id = $3',
+        [await hashPassword(password), businessId, userId]);
+    } else {
+      await query('update users set business_id = $1 where id = $2', [businessId, userId]);
+    }
+  } else {
+    const hash = await hashPassword(password || 'temp1234');
+    const u = await one(
+      `insert into users (role, name, email, password_hash, provider, business_id, avatar_url)
+       values ('employee',$1,$2,$3,'local',$4,$5) returning id`,
+      [prof.name, email, hash, businessId, prof.avatar_url]
+    );
+    userId = u.id;
+  }
+  await query('update professionals set user_id = $1 where id = $2', [userId, prof.id]);
+}
+
 // POST /api/professionals
 router.post('/', requireAuth, requireRole('admin', 'superadmin'), asyncHandler(async (req, res) => {
   const b = req.body;
+  const businessId = b.business_id || b.businessId;
   const prof = await one(
     `insert into professionals (business_id, name, role, commission, avatar_url, specialties, schedule)
      values ($1,$2,$3,$4,$5,$6,$7) returning *`,
-    [b.business_id || b.businessId, b.name, b.role, b.commission ?? 40, b.avatar || b.avatar_url,
-     b.specialties || [], b.schedule || {}]
+    [businessId, b.name, b.role, b.commission ?? 40, b.avatar || b.avatar_url, b.specialties || [], b.schedule || {}]
   );
   await setAssignments(prof.id, b.assignedServices);
+  if (b.accessEmail) await linkEmployeeUser(prof, businessId, b.accessEmail, b.accessPassword);
+
+  const full = await one('select p.*, u.email as access_email from professionals p left join users u on u.id = p.user_id where p.id = $1', [prof.id]);
   const assignments = await many('select * from professional_services where professional_id = $1', [prof.id]);
-  res.status(201).json(mapProfessional(prof, assignments));
+  res.status(201).json(mapProfessional(full, assignments));
 }));
 
 // PATCH /api/professionals/:id
@@ -56,8 +86,11 @@ router.patch('/:id', requireAuth, requireRole('admin', 'superadmin'), asyncHandl
   );
   if (!prof) return res.status(404).json({ error: 'Profesional no encontrado.' });
   if (Array.isArray(b.assignedServices)) await setAssignments(prof.id, b.assignedServices);
+  if (b.accessEmail) await linkEmployeeUser(prof, prof.business_id, b.accessEmail, b.accessPassword);
+
+  const full = await one('select p.*, u.email as access_email from professionals p left join users u on u.id = p.user_id where p.id = $1', [prof.id]);
   const assignments = await many('select * from professional_services where professional_id = $1', [prof.id]);
-  res.json(mapProfessional(prof, assignments));
+  res.json(mapProfessional(full, assignments));
 }));
 
 // DELETE /api/professionals/:id

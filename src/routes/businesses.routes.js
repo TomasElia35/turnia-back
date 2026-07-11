@@ -27,7 +27,10 @@ async function assembleBusiness(bizRow) {
 
 // GET /api/businesses — listado público (landing / búsqueda)
 router.get('/', asyncHandler(async (req, res) => {
-  const rows = await many('select * from businesses where is_active = true order by name', []);
+  const rows = await many(
+    'select * from businesses where is_active = true order by featured desc, featured_rank desc, name',
+    []
+  );
   const result = await Promise.all(rows.map(assembleBusiness));
   res.json(result);
 }));
@@ -80,13 +83,17 @@ router.patch('/:id', requireAuth, requireRole('admin', 'superadmin'), asyncHandl
        deposit_alias = coalesce($14,deposit_alias), deposit_policy = coalesce($15,deposit_policy),
        promo_active = coalesce($16,promo_active), promo_title = coalesce($17,promo_title),
        promo_description = coalesce($18,promo_description),
-       is_active = coalesce($19,is_active), admin_id = coalesce($20,admin_id)
+       is_active = coalesce($19,is_active), admin_id = coalesce($20,admin_id),
+       deposit_allow_direct_cancel = coalesce($21,deposit_allow_direct_cancel),
+       commission_on_products = coalesce($22,commission_on_products)
      where id = $1 returning *`,
     [req.params.id, b.name, b.address, b.phone, b.email, b.instagram, b.whatsapp,
      b.photo || b.photo_url, b.description, b.openHours || b.open_hours, b.themeColor || b.theme_color,
      b.depositConfig?.required, b.depositConfig?.amount, b.depositConfig?.alias, b.depositConfig?.policy,
      b.promotionModal?.active, b.promotionModal?.title, b.promotionModal?.description,
-     b.isActive ?? b.is_active, b.adminId ?? b.admin_id]
+     b.isActive ?? b.is_active, b.adminId ?? b.admin_id,
+     b.depositConfig?.allowDirectCancelWithout ?? b.depositConfig?.allowDirectCancel ?? b.allowDirectCancel,
+     b.commissionOnProducts ?? b.commission_on_products]
   );
   if (!biz) return res.status(404).json({ error: 'Negocio no encontrado.' });
 
@@ -98,6 +105,18 @@ router.patch('/:id', requireAuth, requireRole('admin', 'superadmin'), asyncHandl
 
   res.json(await assembleBusiness(biz));
 }));
+// PATCH /api/businesses/:id/featured — destacar en el marketplace (solo superadmin)
+router.patch('/:id/featured', requireAuth, requireRole('superadmin'), asyncHandler(async (req, res) => {
+  const { featured, featuredRank } = req.body;
+  const biz = await one(
+    `update businesses set featured = coalesce($2, featured), featured_rank = coalesce($3, featured_rank)
+     where id = $1 returning *`,
+    [req.params.id, featured, featuredRank]
+  );
+  if (!biz) return res.status(404).json({ error: 'Negocio no encontrado.' });
+  res.json(await assembleBusiness(biz));
+}));
+
 // DELETE /api/businesses/:id — eliminar (solo superadmin)
 router.delete('/:id', requireAuth, requireRole('superadmin'), asyncHandler(async (req, res) => {
   const row = await one('delete from businesses where id = $1 returning id', [req.params.id]);

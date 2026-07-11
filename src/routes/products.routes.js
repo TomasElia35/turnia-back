@@ -16,6 +16,14 @@ router.get('/sales', requireAuth, asyncHandler(async (req, res) => {
   if (date) add('sale_date = ?', date);
   if (from) add('sale_date >= ?', from);
   if (to) add('sale_date <= ?', to);
+
+  // El empleado solo ve SUS ventas.
+  if (req.user.role === 'employee') {
+    const prof = await one('select id from professionals where user_id = $1', [req.user.id]);
+    if (!prof) return res.json([]);
+    add('professional_id = ?', prof.id);
+  }
+
   const where = conds.length ? `where ${conds.join(' and ')}` : '';
   const rows = await many(`select * from product_sales ${where} order by sold_at desc`, params);
   res.json(rows.map((s) => ({
