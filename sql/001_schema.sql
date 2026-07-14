@@ -116,7 +116,8 @@ create table professionals (
   commission  integer not null default 40,     -- % base
   avatar_url  text,
   specialties text[] default '{}',
-  schedule    jsonb default '{}'::jsonb,        -- { "Lun": ["09:00", ...], ... }
+  schedule    jsonb default '{}'::jsonb,        -- patrón semanal (en desuso): { "Lun": ["09:00", ...], ... }
+  availability jsonb not null default '{}'::jsonb, -- disponibilidad por fecha: { "YYYY-MM-DD": { "start": "HH:MM", "end": "HH:MM" } }
   created_at  timestamptz not null default now()
 );
 create index idx_professionals_business on professionals (business_id);

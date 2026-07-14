@@ -3,6 +3,7 @@ import { one, many, query } from '../config/db.js';
 import { requireAuth, requireRole } from '../middleware/auth.js';
 import { asyncHandler } from '../middleware/errorHandler.js';
 import { mapBooking } from '../utils/map.js';
+import { slotsForDate, isWithinAvailability, DEFAULT_SLOTS } from '../utils/availability.js';
 
 const router = Router();
 
@@ -52,11 +53,14 @@ router.get('/mine', requireAuth, asyncHandler(async (req, res) => {
 }));
 
 // GET /api/bookings/availability?businessId=&date=&professionalId=
-// Devuelve solo los intervalos ocupados (hora + duración), sin datos de clientes.
-// Público: lo usa el asistente de reserva para marcar horarios ocupados.
+// Devuelve { slots, busy }:
+//   • slots: horarios que el profesional atiende esa fecha (según su disponibilidad).
+//   • busy:  intervalos ya ocupados (hora + duración), sin datos de clientes.
+// Público: lo usa el asistente de reserva para mostrar y marcar horarios.
 router.get('/availability', asyncHandler(async (req, res) => {
   const { businessId, date, professionalId } = req.query;
-  if (!businessId || !date) return res.json([]);
+  if (!businessId || !date) return res.json({ slots: [], busy: [] });
+
   const conds = ['b.business_id = $1', 'b.booking_date = $2', "b.status <> 'cancelled'"];
   const params = [businessId, date];
   if (professionalId) { params.push(professionalId); conds.push(`b.professional_id = $${params.length}`); }
@@ -66,7 +70,15 @@ router.get('/availability', asyncHandler(async (req, res) => {
       where ${conds.join(' and ')}`,
     params
   );
-  res.json(rows.map(r => ({ time: r.booking_time, duration: r.duration })));
+  const busy = rows.map(r => ({ time: r.booking_time, duration: r.duration }));
+
+  // Slots según la disponibilidad del profesional (o DEFAULT_SLOTS si no se eligió uno).
+  let slots = [...DEFAULT_SLOTS];
+  if (professionalId) {
+    const prof = await one('select availability from professionals where id = $1', [professionalId]);
+    slots = slotsForDate(prof?.availability, date);
+  }
+  res.json({ slots, busy });
 }));
 
 // Chequeo de solapamiento para un profesional/fecha.
@@ -122,7 +134,18 @@ router.post('/', requireAuth, asyncHandler(async (req, res) => {
     duration = svc?.duration || 60;
   }
   const profId = b.professionalId || b.professional_id || null;
-  if (await hasConflict(b.salonId || b.business_id, profId, b.date || b.booking_date, b.time || b.booking_time, duration)) {
+  const bTime = b.time || b.booking_time;
+
+  // El horario debe caer dentro de la ventana de disponibilidad del profesional
+  // para esa fecha (si el profesional ya configuró su disponibilidad).
+  if (profId) {
+    const prof = await one('select availability from professionals where id = $1', [profId]);
+    if (!isWithinAvailability(prof?.availability, bDate, bTime)) {
+      return res.status(409).json({ error: 'El profesional no atiende en ese horario. Elegí otro turno disponible.' });
+    }
+  }
+
+  if (await hasConflict(b.salonId || b.business_id, profId, bDate, bTime, duration)) {
     return res.status(409).json({ error: 'El horario ya está ocupado para ese profesional.' });
   }
 

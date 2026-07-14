@@ -37,6 +37,7 @@ export const mapProfessional = (p, assignments = []) => {
     avatar: p.avatar_url,
     specialties: p.specialties || [],
     schedule: p.schedule || {},
+    availability: p.availability || {},   // { "YYYY-MM-DD": { start, end } }
     serviceCommissions,
     assignedServices,
     userId: p.user_id || null,

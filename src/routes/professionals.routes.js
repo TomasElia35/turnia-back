@@ -4,8 +4,21 @@ import { requireAuth, requireRole } from '../middleware/auth.js';
 import { asyncHandler } from '../middleware/errorHandler.js';
 import { mapProfessional } from '../utils/map.js';
 import { hashPassword } from '../utils/password.js';
+import { isValidDate, isPastDate, validateWindow } from '../utils/availability.js';
 
 const router = Router();
+
+// ¿Puede el usuario actual editar la disponibilidad de este profesional?
+//  • superadmin: cualquiera
+//  • admin: los de su negocio
+//  • employee: solo el profesional vinculado a su cuenta
+function canEditAvailability(user, prof) {
+  if (!prof) return false;
+  if (user.role === 'superadmin') return true;
+  if (user.role === 'admin') return String(prof.business_id) === String(user.businessId);
+  if (user.role === 'employee') return String(prof.user_id) === String(user.id);
+  return false;
+}
 
 // GET /api/professionals?businessId=... (incluye servicios asignados + cuenta de acceso)
 router.get('/', asyncHandler(async (req, res) => {
@@ -91,6 +104,58 @@ router.patch('/:id', requireAuth, requireRole('admin', 'superadmin'), asyncHandl
   const full = await one('select p.*, u.email as access_email from professionals p left join users u on u.id = p.user_id where p.id = $1', [prof.id]);
   const assignments = await many('select * from professional_services where professional_id = $1', [prof.id]);
   res.json(mapProfessional(full, assignments));
+}));
+
+// ── DISPONIBILIDAD POR FECHA ─────────────────────────────────────────────────
+
+// GET /api/professionals/:id/availability → { availability: { "YYYY-MM-DD": {start,end} } }
+router.get('/:id/availability', requireAuth, asyncHandler(async (req, res) => {
+  const prof = await one('select id, business_id, user_id, availability from professionals where id = $1', [req.params.id]);
+  if (!prof) return res.status(404).json({ error: 'Profesional no encontrado.' });
+  if (!canEditAvailability(req.user, prof)) return res.status(403).json({ error: 'No tenés permisos para ver esta disponibilidad.' });
+  res.json({ availability: prof.availability || {} });
+}));
+
+// PUT /api/professionals/:id/availability → cargar/actualizar la ventana de un día.
+// body: { date: "YYYY-MM-DD", start: "HH:MM", end: "HH:MM" }
+// Regla: no se pueden editar fechas pasadas (solo hoy y futuras).
+router.put('/:id/availability', requireAuth, asyncHandler(async (req, res) => {
+  const { date, start, end } = req.body || {};
+  const prof = await one('select id, business_id, user_id, availability from professionals where id = $1', [req.params.id]);
+  if (!prof) return res.status(404).json({ error: 'Profesional no encontrado.' });
+  if (!canEditAvailability(req.user, prof)) return res.status(403).json({ error: 'No tenés permisos para editar esta disponibilidad.' });
+
+  if (!isValidDate(date)) return res.status(400).json({ error: 'Fecha inválida.' });
+  if (isPastDate(date)) return res.status(400).json({ error: 'No se pueden editar días anteriores a hoy.' });
+
+  const v = validateWindow(start, end);
+  if (!v.ok) return res.status(400).json({ error: v.error });
+
+  const availability = { ...(prof.availability || {}), [date]: v.window };
+  const updated = await one(
+    'update professionals set availability = $2 where id = $1 returning availability',
+    [prof.id, availability]
+  );
+  res.json({ availability: updated.availability });
+}));
+
+// DELETE /api/professionals/:id/availability?date=YYYY-MM-DD → marcar el día como libre.
+router.delete('/:id/availability', requireAuth, asyncHandler(async (req, res) => {
+  const { date } = req.query;
+  const prof = await one('select id, business_id, user_id, availability from professionals where id = $1', [req.params.id]);
+  if (!prof) return res.status(404).json({ error: 'Profesional no encontrado.' });
+  if (!canEditAvailability(req.user, prof)) return res.status(403).json({ error: 'No tenés permisos para editar esta disponibilidad.' });
+
+  if (!isValidDate(date)) return res.status(400).json({ error: 'Fecha inválida.' });
+  if (isPastDate(date)) return res.status(400).json({ error: 'No se pueden editar días anteriores a hoy.' });
+
+  const availability = { ...(prof.availability || {}) };
+  delete availability[date];
+  const updated = await one(
+    'update professionals set availability = $2 where id = $1 returning availability',
+    [prof.id, availability]
+  );
+  res.json({ availability: updated.availability });
 }));
 
 // DELETE /api/professionals/:id
