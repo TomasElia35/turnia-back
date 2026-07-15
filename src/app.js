@@ -12,6 +12,7 @@ import bookingRoutes from './routes/bookings.routes.js';
 import subscriptionRoutes from './routes/subscriptions.routes.js';
 import userRoutes from './routes/users.routes.js';
 import reportRoutes from './routes/reports.routes.js';
+import uploadRoutes from './routes/uploads.routes.js';
 
 const app = express();
 
@@ -52,6 +53,7 @@ app.use('/api/bookings', bookingRoutes);
 app.use('/api/subscriptions', subscriptionRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/reports', reportRoutes);
+app.use('/api/uploads', uploadRoutes);
 
 app.use(notFound);
 app.use(errorHandler);

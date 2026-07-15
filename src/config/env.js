@@ -18,6 +18,10 @@ export const env = {
   emailApiKey: process.env.EMAIL_API_KEY || '',
   emailFrom: process.env.EMAIL_FROM || 'no-reply@turnia.app',
   frontendUrl: process.env.FRONTEND_URL || 'http://localhost:5173',
+  // Supabase Storage (para subir imágenes al bucket público).
+  supabaseUrl: process.env.SUPABASE_URL || '',
+  supabaseServiceKey: process.env.SUPABASE_SERVICE_ROLE_KEY || '',
+  supabaseBucket: process.env.SUPABASE_BUCKET || 'imagenes',
   port: Number(process.env.PORT || 4000),
   corsOrigins: (process.env.CORS_ORIGINS || 'http://localhost:5173')
     .split(',')
