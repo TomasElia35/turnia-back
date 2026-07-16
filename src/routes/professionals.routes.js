@@ -77,7 +77,7 @@ router.post('/', requireAuth, requireRole('admin', 'superadmin'), asyncHandler(a
   const prof = await one(
     `insert into professionals (business_id, name, role, commission, avatar_url, specialties, schedule)
      values ($1,$2,$3,$4,$5,$6,$7) returning *`,
-    [businessId, b.name, b.role, b.commission ?? 40, b.avatar || b.avatar_url, b.specialties || [], b.schedule || {}]
+    [businessId, b.name, b.role, b.commission ?? 40, b.avatar ?? b.avatar_url, b.specialties || [], b.schedule || {}]
   );
   await setAssignments(prof.id, b.assignedServices);
   if (b.accessEmail) await linkEmployeeUser(prof, businessId, b.accessEmail, b.accessPassword);
@@ -95,7 +95,7 @@ router.patch('/:id', requireAuth, requireRole('admin', 'superadmin'), asyncHandl
        commission = coalesce($4,commission), avatar_url = coalesce($5,avatar_url),
        specialties = coalesce($6,specialties), schedule = coalesce($7,schedule)
      where id = $1 returning *`,
-    [req.params.id, b.name, b.role, b.commission, b.avatar || b.avatar_url, b.specialties, b.schedule]
+    [req.params.id, b.name, b.role, b.commission, b.avatar ?? b.avatar_url, b.specialties, b.schedule]
   );
   if (!prof) return res.status(404).json({ error: 'Profesional no encontrado.' });
   if (Array.isArray(b.assignedServices)) await setAssignments(prof.id, b.assignedServices);
