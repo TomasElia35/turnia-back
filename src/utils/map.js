@@ -114,6 +114,9 @@ export const mapBooking = (b) => ({
     ? { requestedAt: b.cancel_requested_at, reason: b.cancel_reason }
     : null,
   cancelRejected: b.cancel_rejected || false,
+  review: b.review_rating != null
+    ? { rating: b.review_rating, comment: b.review_comment || '' }
+    : null,
 });
 
 export const mapSubscription = (s) => ({

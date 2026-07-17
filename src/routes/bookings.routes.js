@@ -13,13 +13,15 @@ const BOOKING_SELECT = `
     d.amount as deposit_amount, d.paid as deposit_paid,
     d.confirmed_by_admin as deposit_confirmed, d.refunded as deposit_refunded,
     p.amount as payment_amount, p.method as payment_method, p.paid_at as payment_paid_at,
-    cr.requested_at as cancel_requested_at, cr.reason as cancel_reason
+    cr.requested_at as cancel_requested_at, cr.reason as cancel_reason,
+    rv.rating as review_rating, rv.comment as review_comment
   from bookings b
   left join deposits d on d.booking_id = b.id
   left join lateral (
     select amount, method, paid_at from payments where booking_id = b.id order by paid_at desc limit 1
   ) p on true
   left join cancellation_requests cr on cr.booking_id = b.id and cr.resolved = false
+  left join reviews rv on rv.booking_id = b.id
 `;
 
 // GET /api/bookings?businessId=&date=&from=&to=&professionalId=

@@ -9,6 +9,7 @@ create extension if not exists "pgcrypto";
 
 -- ── Limpieza (orden inverso por dependencias) ───────────────────────────────
 drop table if exists password_reset_tokens cascade;
+drop table if exists reviews               cascade;
 drop table if exists commission_payouts    cascade;
 drop table if exists product_sales         cascade;
 drop table if exists cancellation_requests cascade;
@@ -215,6 +216,18 @@ create table product_sales (
   sold_at         timestamptz not null default now()
 );
 create index idx_sales_business_date on product_sales (business_id, sale_date);
+
+-- ── REVIEWS (reseñas de clientes — 1 por turno) ──────────────────────────────
+create table reviews (
+  id          uuid primary key default gen_random_uuid(),
+  business_id uuid not null references businesses(id) on delete cascade,
+  booking_id  uuid not null unique references bookings(id) on delete cascade,
+  client_id   uuid references users(id) on delete set null,
+  rating      integer not null check (rating between 1 and 5),
+  comment     text default '',
+  created_at  timestamptz not null default now()
+);
+create index idx_reviews_business on reviews (business_id);
 
 -- ── PLANS (catálogo de planes de suscripción) ────────────────────────────────
 create table plans (
