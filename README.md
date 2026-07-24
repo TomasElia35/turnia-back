@@ -1,4 +1,4 @@
-# Turnia — Backend
+# Galart — Backend
 
 API REST en **Node + Express**, base de datos **Supabase (PostgreSQL)**, desplegable en **Vercel** como función serverless. Vive junto al frontend en el monorepo (`/backend`).
 
@@ -29,13 +29,13 @@ Se conecta a Postgres vía `DATABASE_URL` (driver `pg`), así que corre igual en
 
 ### 1. Crear la base
 ```bash
-createdb turnia          # o en psql:  CREATE DATABASE turnia;
+createdb galart          # o en psql:  CREATE DATABASE galart;
 ```
 
 ### 2. Configurar y poblar
 ```bash
 cd backend
-cp .env.example .env          # DATABASE_URL=postgres://postgres:postgres@localhost:5432/turnia
+cp .env.example .env          # DATABASE_URL=postgres://postgres:postgres@localhost:5432/galart
                               # DB_SSL=false · JWT_SECRET=<algo largo>
 npm install
 npm run db:setup              # corre 001_schema.sql + 002_seed.sql + usuarios demo (bcrypt)
@@ -51,7 +51,7 @@ npm run dev                   # http://localhost:5173
 ```
 
 ## Producción (Supabase + Vercel)
-1. Crear proyecto en [supabase.com](https://supabase.com) (nombre del proyecto: **turnia**). La base siempre se llama `postgres` — no se elige.
+1. Crear proyecto en [supabase.com](https://supabase.com) (nombre del proyecto: **galart**). La base siempre se llama `postgres` — no se elige.
 2. **SQL Editor** → ejecutar en orden: `sql/001_schema.sql`, `sql/002_seed.sql` y `sql/003_users.sql` (este último crea los usuarios demo con contraseñas ya hasheadas).
 3. En Vercel (root = `backend`) cargar las env: `DATABASE_URL` (connection string *pooler* de Supabase, termina en `/postgres`), `DB_SSL=true`, `JWT_SECRET`, `FRONTEND_URL`, `CORS_ORIGINS`.
 4. El frontend en Vercel apunta `VITE_API_URL` a la URL del backend desplegado.

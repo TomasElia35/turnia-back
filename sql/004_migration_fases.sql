@@ -1,5 +1,5 @@
 -- =============================================================================
--- Turnia — Migración Fases 1 a 5
+-- Galart — Migración Fases 1 a 5
 -- Ejecutar en: Supabase → SQL Editor → New query → Run
 -- Idempotente: agrega columnas/tablas SIN borrar datos existentes.
 -- Se puede correr más de una vez sin romper.

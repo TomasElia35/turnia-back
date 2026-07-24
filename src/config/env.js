@@ -16,7 +16,7 @@ export const env = {
   googleClientSecret: process.env.GOOGLE_CLIENT_SECRET || '',
   emailProvider: process.env.EMAIL_PROVIDER || '',
   emailApiKey: process.env.EMAIL_API_KEY || '',
-  emailFrom: process.env.EMAIL_FROM || 'no-reply@turnia.app',
+  emailFrom: process.env.EMAIL_FROM || 'no-reply@galart.app',
   frontendUrl: process.env.FRONTEND_URL || 'http://localhost:5173',
   // Supabase Storage (para subir imágenes al bucket público).
   supabaseUrl: process.env.SUPABASE_URL || '',

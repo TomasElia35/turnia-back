@@ -1,5 +1,5 @@
 -- =============================================================================
--- EstéticaHub — Seed de datos de ejemplo (espeja el mock del frontend)
+-- Galart — Seed de datos de ejemplo (espeja el mock del frontend)
 -- Ejecutar DESPUÉS de 001_schema.sql, en Supabase SQL Editor.
 --
 -- IMPORTANTE: los USUARIOS con contraseña NO se cargan acá (las contraseñas

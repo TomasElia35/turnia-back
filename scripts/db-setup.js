@@ -1,6 +1,6 @@
 // Setup completo de la base de datos LOCAL (o cualquier Postgres vía DATABASE_URL).
 //   1) configurar backend/.env (DATABASE_URL)
-//   2) crear la base:  createdb turnia   (o con psql: CREATE DATABASE turnia;)
+//   2) crear la base:  createdb galart   (o con psql: CREATE DATABASE galart;)
 //   3) npm install
 //   4) npm run db:setup
 //

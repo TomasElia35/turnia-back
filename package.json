@@ -1,7 +1,7 @@
 {
-  "name": "turnia-backend",
+  "name": "galart-backend",
   "version": "1.0.0",
-  "description": "Backend de Turnia — Express + Supabase (Postgres), desplegable en Vercel como función serverless.",
+  "description": "Backend de Galart — Express + Supabase (Postgres), desplegable en Vercel como función serverless.",
   "type": "module",
   "main": "src/server.js",
   "scripts": {

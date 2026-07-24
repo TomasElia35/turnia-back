@@ -1,5 +1,5 @@
 -- =============================================================================
--- Turnia — Migración: Disponibilidad por fecha del profesional
+-- Galart — Migración: Disponibilidad por fecha del profesional
 -- Ejecutar en: Supabase → SQL Editor → New query → Run
 -- Idempotente: agrega la columna SIN borrar datos existentes.
 -- =============================================================================

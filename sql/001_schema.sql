@@ -1,5 +1,5 @@
 -- =============================================================================
--- EstéticaHub — Script de creación de la base de datos (PostgreSQL / Supabase)
+-- Galart — Script de creación de la base de datos (PostgreSQL / Supabase)
 -- Ejecutar en: Supabase → SQL Editor → New query → Run
 -- Idempotente: se puede correr más de una vez sin romper (DROP + CREATE).
 -- =============================================================================

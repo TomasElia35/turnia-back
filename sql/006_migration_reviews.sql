@@ -1,5 +1,5 @@
 -- =============================================================================
--- Turnia — Migración: Reseñas / calificaciones de clientes
+-- Galart — Migración: Reseñas / calificaciones de clientes
 -- Ejecutar en: Supabase → SQL Editor → New query → Run
 -- Idempotente: crea la tabla SIN borrar datos existentes.
 -- =============================================================================

@@ -41,7 +41,7 @@ app.options('*', cors(corsOptions)); // responde el preflight explícitamente
 app.use(express.json());
 
 // Healthcheck
-app.get('/', (req, res) => res.json({ ok: true, service: 'turnia-backend' }));
+app.get('/', (req, res) => res.json({ ok: true, service: 'galart-backend' }));
 app.get('/api/health', (req, res) => res.json({ ok: true, ts: Date.now() }));
 
 // Rutas
